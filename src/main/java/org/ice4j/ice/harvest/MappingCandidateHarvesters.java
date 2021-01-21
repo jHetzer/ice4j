@@ -51,11 +51,25 @@ public class MappingCandidateHarvesters
         = "org.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS";
 
     /**
+     * The name of the property that specifies a list of local addresses,
+     * if any, for the pre-configured NAT harvester.
+     */
+    public static final String NAT_HARVESTER_LOCAL_ADDRESSES_PNAME
+            = "org.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESSES";
+
+    /**
      * The name of the property that specifies the public address, if any, for
      * the pre-configured NAT harvester.
      */
     public static final String NAT_HARVESTER_PUBLIC_ADDRESS_PNAME
         = "org.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS";
+
+    /**
+     * The name of the property that specifies a list of local addresses,
+     * if any, for the pre-configured NAT harvester.
+     */
+    public static final String NAT_HARVESTER_PUBLIC_ADDRESSES_PNAME
+            = "org.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESSES";
 
     /**
      * Whether {@link #harvesters} has been initialized.
@@ -107,22 +121,47 @@ public class MappingCandidateHarvesters
 
 
         // Pre-configured NAT harvester.
+        List<String> localAdresses = new ArrayList<String>();
+        List<String> publicAdresses = new ArrayList<String>();
+
         String localAddressStr
-            = StackProperties.getString(NAT_HARVESTER_LOCAL_ADDRESS_PNAME);
+                = StackProperties.getString(NAT_HARVESTER_LOCAL_ADDRESS_PNAME);
         String publicAddressStr
-            = StackProperties.getString(NAT_HARVESTER_PUBLIC_ADDRESS_PNAME);
+                = StackProperties.getString(NAT_HARVESTER_PUBLIC_ADDRESS_PNAME);
+
+        String[] localAddressesLst
+                = StackProperties.getStringArray(NAT_HARVESTER_LOCAL_ADDRESSES_PNAME, ",");
+        String[] publicAddressesLst
+                = StackProperties.getStringArray(NAT_HARVESTER_PUBLIC_ADDRESSES_PNAME, ",");
 
         if (localAddressStr != null && publicAddressStr != null)
         {
-            // the port number is unused, 9 is for "discard"
-            TransportAddress localAddress
-                = new TransportAddress(localAddressStr, 9, Transport.UDP);
-            TransportAddress publicAddress
-                = new TransportAddress(publicAddressStr, 9, Transport.UDP);
-
-            harvesterList.add(
-                new MappingCandidateHarvester(publicAddress, localAddress));
+            localAdresses.add(localAddressStr);
+            publicAdresses.add(publicAddressStr);
         }
+
+        if (publicAddressesLst != null && localAddressesLst != null)
+        {
+            localAdresses.addAll(Arrays.asList(localAddressesLst));
+            publicAdresses.addAll(Arrays.asList(publicAddressesLst));
+        }
+
+        if (localAdresses.size() == publicAdresses.size())
+        {
+            for(int i = 0; i < publicAdresses.size(); i++)
+            {
+                // the port number is unused, 9 is for "discard"
+                TransportAddress localAddress
+                        = new TransportAddress(localAdresses.get(i), 9, Transport.UDP);
+                TransportAddress publicAddress
+                        = new TransportAddress(publicAdresses.get(i), 9, Transport.UDP);
+                harvesterList.add(
+                        new MappingCandidateHarvester(publicAddress, localAddress));
+            }
+        }
+        else
+            logger.info("Not adding harvester mapping, local=" + localAdresses.toString()
+                    + " and public=" + publicAdresses.toString() + " do not have equal size.");
 
         // AWS harvester
         boolean enableAwsHarvester = config.enableAwsHarvester();
